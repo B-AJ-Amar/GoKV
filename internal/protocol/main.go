@@ -27,7 +27,7 @@ const (
 	BulkStrRes          // $n\r\nXXX\r\n
 	NotExistsRes        // $-1\r\n
 	IntRes              // :1\r\n
-	SpecialRes
+	SpecialRes          // to dend directly hardcoded response
 )
 
 type RESPReq struct {
