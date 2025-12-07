@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	allowedCommands = [...]string{"set", "get", "ping", "hello"}
+	allowedCommands = [...]string{"set", "get", "del", "incr", "exists", "ping", "hello"}
 )
 
 func (r *RESP) Parse(reader *bufio.Reader) (*RESPReq, error) {
@@ -17,12 +17,12 @@ func (r *RESP) Parse(reader *bufio.Reader) (*RESPReq, error) {
 	if err != nil {
 		return nil, ErrInvalidFormat
 	}
-	msg = msg[:len(msg)-1] // del \r
+	msg = strings.TrimRight(msg, "\r\n")
 
 	if msg[0] == '*' {
 		req.argsLen, err = strconv.Atoi(msg[1:])
 		if err != nil {
-			return nil, ErrInvalidFormat
+			return nil, ErrParseLen
 		}
 	} else {
 		return nil, ErrInvalidFormat
@@ -31,14 +31,14 @@ func (r *RESP) Parse(reader *bufio.Reader) (*RESPReq, error) {
 	for i := 0; i < req.argsLen; i++ {
 		// "$N" len of the next arg
 		msg, err := reader.ReadString('\n')
-		msg = msg[:len(msg)-1] // del \r
 		if err != nil {
 			return nil, ErrInvalidFormat
 		}
+		msg = strings.TrimRight(msg, "\r\n")
 		if msg[0] == '$' {
 			argLen, err = strconv.Atoi(msg[1:])
 			if err != nil {
-				return nil, ErrInvalidFormat
+				return nil, ErrParseLen
 			}
 		} else {
 			return nil, ErrInvalidFormat
@@ -48,11 +48,10 @@ func (r *RESP) Parse(reader *bufio.Reader) (*RESPReq, error) {
 		if err != nil {
 			return nil, ErrInvalidFormat
 		}
-		msgArg = msgArg[:len(msg)-1] // del \r
+		msgArg = strings.TrimRight(msgArg, "\r\n")
 
 		if argLen != len(msgArg) {
 			return nil, ErrWrongArgLen
-
 		}
 		req.args = append(req.args, msgArg)
 

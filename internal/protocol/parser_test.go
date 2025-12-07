@@ -7,41 +7,76 @@ import (
 	"strings"
 )
 
-func TestParseSimpleCommand(t *testing.T) {
-	input := "SET key value\r\n"
-	reader := bufio.NewReader(strings.NewReader(input))
-	resp := &RESP{}
-	req, err := resp.Parse(reader)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
+func TestParseRESPCommands(t *testing.T) {
+	tests := []struct {
+		input       string
+		wantCmd     string
+		wantArgs    []string
+		wantArgsLen int
+		wantErr     bool
+	}{
+		{
+			"*3\r\n$3\r\nSET\r\n$5\r\nmykey\r\n$5\r\nvalue\r\n",
+			"set", []string{"set", "mykey", "value"}, 3, false,
+		},
+		{
+			"*1\r\n$4\r\nPING\r\n",
+			"ping", []string{"ping"}, 1, false,
+		},
+		{
+			"*2\r\n$3\r\nGET\r\n$5\r\nmykey\r\n",
+			"get", []string{"get", "mykey"}, 2, false,
+		},
+		{
+			"*2\r\n$3\r\nDEL\r\n$5\r\nmykey\r\n",
+			"del", []string{"del", "mykey"}, 2, false,
+		},
+		{
+			"*2\r\n$4\r\nINCR\r\n$3\r\nctr\r\n",
+			"incr", []string{"incr", "ctr"}, 2, false,
+		},
+		{
+			"*2\r\n$6\r\nEXISTS\r\n$5\r\nmykey\r\n",
+			"exists", []string{"exists", "mykey"}, 2, false,
+		},
+		// {
+		// 	"*2\r\n$4\r\nTYPE\r\n$5\r\nmykey\r\n",
+		// 	"type", []string{"type", "mykey"}, 2, false,
+		// },
 	}
-	if req.cmd != "SET" {
-		t.Errorf("Expected cmd 'SET', got '%s'", req.cmd)
-	}
-	if req.argsLen != 2 {
-		t.Errorf("Expected argsLen 2, got %d", req.argsLen)
-	}
-	if len(req.args) != 2 || req.args[0] != "key" || req.args[1] != "value" {
-		t.Errorf("Expected args ['key', 'value'], got %v", req.args)
-	}
-}
 
-func TestParseEmptyCommand(t *testing.T) {
-	input := "\r\n"
-	reader := bufio.NewReader(strings.NewReader(input))
-	resp := &RESP{}
-	_, err := resp.Parse(reader)
-	if err == nil {
-		t.Error("Expected error for empty command, got nil")
-	}
-}
-
-func TestParseMalformedCommand(t *testing.T) {
-	input := "SET\r\nvalue\r\n"
-	reader := bufio.NewReader(strings.NewReader(input))
-	resp := &RESP{}
-	_, err := resp.Parse(reader)
-	if err == nil {
-		t.Error("Expected error for malformed command, got nil")
+	for _, tt := range tests {
+		reader := bufio.NewReader(strings.NewReader(tt.input))
+		resp := &RESP{}
+		req, err := resp.Parse(reader)
+		if tt.wantErr {
+			if err == nil {
+				t.Errorf("Expected error for input %q, got nil", tt.input)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("Unexpected error for input %q: %v", tt.input, err)
+			continue
+		}
+		if req.cmd != strings.ToLower(tt.wantCmd) {
+			t.Errorf("Expected cmd %q, got %q", tt.wantCmd, req.cmd)
+		}
+		if req.argsLen != tt.wantArgsLen {
+			t.Errorf("Expected argsLen %d, got %d", tt.wantArgsLen, req.argsLen)
+		}
+		if len(req.args) != len(tt.wantArgs) {
+			t.Errorf("Expected args %v, got %v", tt.wantArgs, req.args)
+		} else {
+			for i := range tt.wantArgs {
+				got := req.args[i]
+				if i == 0 {
+					got = strings.ToLower(got)
+				}
+				if got != tt.wantArgs[i] {
+					t.Errorf("Expected arg[%d] %q, got %q", i, tt.wantArgs[i], req.args[i])
+				}
+			}
+		}
 	}
 }

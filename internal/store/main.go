@@ -1,6 +1,8 @@
 package store
 
 import (
+	"errors"
+	"strconv"
 	"time"
 )
 
@@ -15,7 +17,10 @@ type KVStore interface {
 	Set(Key string, Value []byte) int
 	Setx(Key string, Value []byte, exp int) int
 	Get(key string) ([]byte, error)
-	Delete(key string) int
+	Del(key string) int
+	Type(key string) string
+	Incr(key string) int
+	Exists(key string) int
 }
 
 type InMemoryStore struct {
@@ -46,10 +51,28 @@ func (s *InMemoryStore) Get(key string) ([]byte, error) {
 	return nil, nil
 }
 
-func (s *InMemoryStore) Delete(key string) int {
+func (s *InMemoryStore) Del(key string) int {
 	if _, ok := s.data[key]; ok {
 		delete(s.data, key)
 		return 1
 	}
 	return 0
+}
+func (s *InMemoryStore) Exists(key string) int {
+	if _, ok := s.data[key]; ok {
+		return 1
+	}
+	return 0
+}
+func (s *InMemoryStore) Incr(key string) (int, error) {
+	if record, ok := s.data[key]; ok {
+		rec, err := strconv.Atoi(string(record.Value))
+		if err != nil {
+			return 0, errors.New("ERR Not Int")
+		}
+		rec++
+		record.Value = []byte(strconv.Itoa(rec))
+		return 1, nil
+	}
+	return 0, nil
 }
