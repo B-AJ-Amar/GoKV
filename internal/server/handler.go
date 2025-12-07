@@ -14,20 +14,22 @@ func HandleConnection(conn net.Conn, mem *store.InMemoryStore) {
 	r := bufio.NewReader(conn)
 	w := bufio.NewWriter(conn)
 
-	resp := protocol.RESP{}
+	for {
+		resp := protocol.RESP{}
+		req, err := resp.Parse(r)
+		if err != nil {
+			resp.SendError(w, err.Error())
+			return
+		}
 
-	req, err := resp.Parse(r)
-	if err != nil {
-		resp.SendError(w, err.Error())
-		return
+		res, err := resp.Process(req, mem)
+		if err != nil {
+			resp.SendError(w, err.Error())
+			return
+		}
+
+		resp.Send(w, res)
+
 	}
-
-	res, err := resp.Process(req, mem)
-	if err != nil {
-		resp.SendError(w, err.Error())
-		return
-	}
-
-	resp.Send(w, res)
 
 }
