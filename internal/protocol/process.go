@@ -21,6 +21,10 @@ func (r *RESP) Process(req *RESPReq, mem *store.InMemoryStore) (*RESPRes, error)
 		// todo : add exp
 		response.msgType = SimpleRes
 		response.message = "OK"
+	case "del":
+		mem.Del(req.args[1])
+		response.msgType = IntRes
+		response.message = "1"
 	case "ping":
 		response.msgType = SimpleRes
 		response.message = "PONG"
