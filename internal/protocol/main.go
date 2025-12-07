@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"bufio"
 	"fmt"
 
 	"github.com/B-AJ-Amar/gokv/internal/store"
@@ -44,7 +45,7 @@ type RESPRes struct {
 type Protocol interface {
 	Parse(msg string) (*RESPReq, error)
 	Process(req *RESPReq, mem *store.InMemoryStore) (*RESPRes, error)
-	Send()
+	Send(writer *bufio.Writer, res *RESPRes) (int, error)
 	SendError(msg string)
 }
 
