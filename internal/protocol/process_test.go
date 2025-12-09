@@ -68,7 +68,8 @@ func TestProcessSetAndGet(t *testing.T) {
 	resp := &RESP{}
 	// SET key value
 	setReq := &RESPReq{cmd: "set", argsLen: 3, args: []string{"set", "mykey", "value"}}
-	setRes, err := resp.Process(setReq, &mem)
+	idx := 0
+	setRes, err := resp.Process(setReq, &idx, &mem)
 	if err != nil {
 		t.Fatalf("Process SET failed: %v", err)
 	}
@@ -78,7 +79,7 @@ func TestProcessSetAndGet(t *testing.T) {
 
 	// GET key
 	getReq := &RESPReq{cmd: "get", argsLen: 2, args: []string{"get", "mykey"}}
-	getRes, err := resp.Process(getReq, &mem)
+	getRes, err := resp.Process(getReq, &idx, &mem)
 	if err != nil {
 		t.Fatalf("Process GET failed: %v", err)
 	}
@@ -91,7 +92,8 @@ func TestProcessPing(t *testing.T) {
 	mem := store.NewInMemoryStore()
 	resp := &RESP{}
 	pingReq := &RESPReq{cmd: "ping", argsLen: 1, args: []string{"ping"}}
-	pingRes, err := resp.Process(pingReq, &mem)
+	idx := 0
+	pingRes, err := resp.Process(pingReq, &idx, &mem)
 	if err != nil {
 		t.Fatalf("Process PING failed: %v", err)
 	}
@@ -104,7 +106,8 @@ func TestProcessUnknownCommand(t *testing.T) {
 	mem := store.NewInMemoryStore()
 	resp := &RESP{}
 	req := &RESPReq{cmd: "unknown", argsLen: 1, args: []string{"unknown"}}
-	res, err := resp.Process(req, &mem)
+	idx := 0
+	res, err := resp.Process(req, &idx, &mem)
 	if err != nil {
 		t.Fatalf("Process unknown command failed: %v", err)
 	}
