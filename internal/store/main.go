@@ -32,7 +32,7 @@ type KVRecord struct {
 
 type KVStore interface {
 	Set(Key string, Value []byte) int
-	Setx(Key string, Value []byte, exp int) int
+	Setx(key string, Value []byte, args SetArgs) (int, []byte, error)
 	Get(key string) ([]byte, error)
 	Del(keys []string) int
 	Type(key string) string

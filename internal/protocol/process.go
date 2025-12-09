@@ -18,10 +18,24 @@ func (r *RESP) Process(req *RESPReq, mem *store.InMemoryStore) (*RESPRes, error)
 			response.message = string(res)
 		}
 	case "set":
-		mem.Set(req.args[1], []byte(req.args[2]))
-		// todo : add exp
-		response.msgType = SimpleRes
-		response.message = "OK"
+		if req.argsLen == 3 {
+			mem.Set(req.args[1], []byte(req.args[2]))
+			response.msgType = SimpleRes
+			response.message = "OK"
+		} else {
+			_, oldRet, err := mem.Setx(req.args[1], []byte(req.args[2]), req.setArgs)
+			if err != nil {
+				response.msgType = ErrorRes
+				response.message = "ERR syntax error"
+			} else if oldRet != nil {
+				response.msgType = BulkStrRes
+				response.message = string(oldRet)
+			} else {
+				response.msgType = SimpleRes
+				response.message = "OK"
+			}
+		}
+
 	case "del":
 		deleted := mem.Del(req.args[1:])
 		response.msgType = IntRes
