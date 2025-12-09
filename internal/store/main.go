@@ -8,9 +8,26 @@ import (
 
 // for this version we will just keep it simple (map)
 
+const (
+	ExpireNone = iota
+	ExpireEX
+	ExpirePX
+	ExpireEXAT
+	ExpirePXAT
+	ExpireKEEPTTL
+)
+
+type SetArgs struct {
+	ExpType int8
+	ExpVal  int
+	NX_XX   int8 // 0 for nil, 1 for NX, 2 for XX
+	KeepTTL bool
+	Get     bool
+}
+
 type KVRecord struct {
 	Value []byte
-	exp   int // exp = unix_time_now + ttl
+	exp   int64 // exp = unix_time_now(ms) + ttl(ms)
 }
 
 type KVStore interface {
@@ -36,18 +53,72 @@ func NewInMemoryStore() InMemoryStore {
 	}
 }
 
+// TODO: add mutex for set and setx
 func (s *InMemoryStore) Set(key string, Value []byte) int {
 	s.data[key] = KVRecord{Value: Value, exp: -1}
 	return 1
 }
 
-func (s *InMemoryStore) Setx(key string, Value []byte, ttl int) int {
-	s.data[key] = KVRecord{Value: Value, exp: int(time.Now().Unix()) + ttl}
-	return 1
+func (s *InMemoryStore) Setx(key string, Value []byte, args SetArgs) (int, []byte, error) {
+	expUnix := int64(-1)
+	oldValue := []byte{}
+	retOld := false
+
+	switch args.NX_XX {
+	case 1: // NX
+		if _, ok := s.data[key]; ok {
+			return 0, nil, nil
+		}
+	case 2: // XX
+		if _, ok := s.data[key]; !ok {
+			return 0, nil, nil
+		}
+		if args.Get {
+			return 0, nil, errors.New("ERR syntax error")
+		}
+	}
+
+	nowMs := time.Now().UnixMilli()
+	switch args.ExpType {
+	case ExpireEX:
+		expUnix = nowMs + int64(args.ExpVal)*1000 // EX is seconds, convert to ms
+	case ExpirePX:
+		expUnix = nowMs + int64(args.ExpVal) // PX is ms
+	case ExpireEXAT:
+		expUnix = int64(args.ExpVal) * 1000 // EXAT is seconds, convert to ms
+	case ExpirePXAT:
+		expUnix = int64(args.ExpVal) // PXAT is ms
+	default:
+		expUnix = -1
+	}
+
+	if args.KeepTTL {
+		if record, ok := s.data[key]; ok {
+			expUnix = record.exp
+		}
+	}
+
+	if args.Get {
+		if record, ok := s.data[key]; ok {
+			oldValue = record.Value
+			retOld = true
+		}
+	}
+
+	s.data[key] = KVRecord{Value: Value, exp: expUnix}
+	if retOld {
+		return 1, oldValue, nil
+	}
+	return 1, nil, nil
 }
 
 func (s *InMemoryStore) Get(key string) ([]byte, error) {
 	if record, ok := s.data[key]; ok {
+		nowMs := time.Now().UnixMilli()
+		if record.exp != -1 && record.exp <= nowMs {
+			delete(s.data, key)
+			return nil, nil
+		}
 		return record.Value, nil
 	}
 	return nil, nil
@@ -88,10 +159,10 @@ func (s *InMemoryStore) Incrby(key string, by int) (int, error) {
 }
 
 func (s *InMemoryStore) GetAllKeys() []string {
-	now := int(time.Now().Unix())
+	nowMs := time.Now().UnixMilli()
 	keys := make([]string, 0, len(s.data))
 	for k, rec := range s.data {
-		if rec.exp != -1 && rec.exp <= now {
+		if rec.exp != -1 && rec.exp <= nowMs {
 			delete(s.data, k)
 			continue
 		}
@@ -101,10 +172,10 @@ func (s *InMemoryStore) GetAllKeys() []string {
 }
 
 func (s *InMemoryStore) GetAllValues() [][]byte {
-	now := int(time.Now().Unix())
+	nowMs := time.Now().UnixMilli()
 	values := make([][]byte, 0, len(s.data))
 	for k, rec := range s.data {
-		if rec.exp != -1 && rec.exp <= now {
+		if rec.exp != -1 && rec.exp <= nowMs {
 			delete(s.data, k)
 			continue
 		}

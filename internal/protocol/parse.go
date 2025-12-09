@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"strconv"
 	"strings"
+
+	"github.com/B-AJ-Amar/gokv/internal/store"
 )
 
 var (
@@ -13,17 +15,17 @@ var (
 func getExpireType(arg string) int8 {
 	switch arg {
 	case "EX":
-		return ExpireEX
+		return store.ExpireEX
 	case "PX":
-		return ExpirePX
+		return store.ExpirePX
 	case "EXAT":
-		return ExpireEXAT
+		return store.ExpireEXAT
 	case "PXAT":
-		return ExpirePXAT
+		return store.ExpirePXAT
 	case "KEEPTTL":
-		return ExpireKEEPTTL
+		return store.ExpireKEEPTTL
 	default:
-		return ExpireNone
+		return store.ExpireNone
 	}
 }
 
@@ -87,7 +89,7 @@ func (r *RESP) Parse(reader *bufio.Reader) (*RESPReq, error) {
 			for i < len(req.args) {
 				arg := strings.ToUpper(req.args[i])
 				if arg == "EX" || arg == "PX" || arg == "EXAT" || arg == "PXAT" {
-					req.setArgs.expType = getExpireType(arg)
+					req.setArgs.ExpType = getExpireType(arg)
 					if i+1 >= len(req.args) {
 						return nil, ErrWrongNumberArgs
 					}
@@ -95,19 +97,19 @@ func (r *RESP) Parse(reader *bufio.Reader) (*RESPReq, error) {
 					if err != nil {
 						return nil, ErrInvalidExpireTime
 					}
-					req.setArgs.expVal = val
+					req.setArgs.ExpVal = val
 					i += 2
 				} else if arg == "NX" {
-					req.setArgs.nx = true
+					req.setArgs.NX_XX = 1
 					i++
 				} else if arg == "XX" {
-					req.setArgs.xx = true
+					req.setArgs.NX_XX = 2
 					i++
 				} else if arg == "KEEPTTL" {
-					req.setArgs.keepTTL = true
+					req.setArgs.KeepTTL = true
 					i++
 				} else if arg == "GET" {
-					req.setArgs.get = true
+					req.setArgs.Get = true
 					i++
 				} else {
 					return nil, ErrWrongNumberArgs

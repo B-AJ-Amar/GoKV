@@ -23,30 +23,11 @@ const (
 	SpecialRes          // to send directly hardcoded response
 )
 
-const (
-	ExpireNone = iota
-	ExpireEX
-	ExpirePX
-	ExpireEXAT
-	ExpirePXAT
-	ExpireKEEPTTL
-)
-
-// todo : add set flags support
-type RESPSetArgs struct {
-	expType int8
-	expVal  int
-	xx      bool
-	nx      bool
-	keepTTL bool
-	get     bool
-}
-
 type RESPReq struct {
 	cmd     string
 	argsLen int
 	args    []string
-	setArgs RESPSetArgs
+	setArgs store.SetArgs
 }
 
 type RESPRes struct {
